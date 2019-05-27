@@ -46,6 +46,22 @@ $ ./pargolo.exe
         (optional) AWS profile
   -value string
         (required) The Value to search
+[promote]
+  -domain string
+        (required) The project domain
+  -env string
+        (required) The source environment
+  -profile string
+        (optional) AWS profile
+  -project string
+        (required) The project name
+[validate]
+  -env string
+        (required) The target environment
+  -input string
+        (required) Input CSV file
+  -profile string
+        (optional) AWS profile
 ```
 
 #### AWS Authentication
@@ -74,4 +90,19 @@ Sometimes You just need to find all parameters with a specific value, you can us
 
 ```sh
 $ ./pargolo scrape -output outputcsv -value foobar
+```
+#### Create a CSV file containing all project's parameters with "pargolo promote"
+
+When you need to promote parameters of one project from an environment to another you can use `pargolo promote` command to download all project related parameters:
+
+```sh
+$ ./pargolo promote -env envname -domain domainname -project projectname
+```
+
+#### Validate a CSV file containing all project's parameters with "pargolo validate"
+
+Before to upload a CSV you can check the validity of you data against some basic rules with `pargolo promote` command:
+
+```sh
+$ ./pargolo validate -env envname -input inputcsv -profile targetenvprofile
 ```
