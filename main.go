@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/csv"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,11 +28,13 @@ type SystemsManagerParameter struct {
 // SystemsManagerParameters is  a map of parameter names and SystemsManagerParameter objects
 type SystemsManagerParameters map[string]*SystemsManagerParameter
 
-var profile, prefix, output, input, value, scrapeoutput string
+var profile, prefix, output, input, value, env, domain, project string
 var overwrite bool
 var download *flag.FlagSet
 var upload *flag.FlagSet
 var scrape *flag.FlagSet
+var promote *flag.FlagSet
+var validate *flag.FlagSet
 
 // CreateSession returns a new AWS session
 func CreateSession() (sess *session.Session, err error) {
@@ -88,6 +92,49 @@ func DeleteParameter(paramName string) (err error) {
 	}
 
 	return nil
+}
+
+// GetParameterByName deletes a parameter on parameter store
+func GetParameterByName(paramName string) (param SystemsManagerParameter, err error) {
+	sess, err := CreateSession()
+	if err != nil {
+		return param, err
+	}
+
+	svc := ssm.New(sess)
+	var output *ssm.GetParameterOutput
+
+	input := &ssm.GetParameterInput{
+		Name:           aws.String(paramName),
+		WithDecryption: aws.Bool(true),
+	}
+	output, err = svc.GetParameter(input)
+	if err != nil {
+		return param, err
+	}
+	param = SystemsManagerParameter{Name: *output.Parameter.Name, Type: *output.Parameter.Type, Value: *output.Parameter.Value}
+
+	return param, nil
+}
+
+// GetParametersByValue scrape the entire parameter store searching for all keys with a specific value
+func GetParametersByValue(paramValue string) (params SystemsManagerParameters, err error) {
+	allparams, err := GetSystemsManagerParametersByPath("/")
+	if err != nil {
+		println(err.Error())
+	}
+	params = make(map[string]*SystemsManagerParameter)
+
+	for _, value := range allparams {
+		if value.Value == paramValue {
+			//fmt.Println(value.Value)
+			params[value.Name] = &SystemsManagerParameter{Name: value.Name, Type: value.Type, Value: value.Value}
+		}
+	}
+	if len(params) == 0 {
+		return params, errors.New("can't find any parameter with value " + paramValue)
+	}
+	return params, nil
 }
 
 // GetSystemsManagerParametersByPath retrieves the parameter from the AWS System Manager Parameter Store starting from the initial path recursively.
@@ -217,6 +264,113 @@ func DownloadParametersByValue(scrapevalue string, filename string) {
 	println("ok")
 }
 
+// PromoteParameters download all parameters linked to a project.
+func PromoteParameters(env string, domain string, project string) {
+	params, err := GetSystemsManagerParametersByPath("/" + env + "/" + domain + "/" + project)
+	if err != nil {
+		println(err.Error())
+	}
+
+	records := [][]string{}
+
+	for key, value := range params {
+		records = append(records, []string{key, value.Type, value.Value})
+	}
+
+	for _, value := range params {
+		if strings.HasPrefix(value.Value, "/"+env+"/common") {
+			common, err := GetParameterByName(value.Value)
+			if err != nil {
+				println(err.Error())
+			} else {
+				records = append(records, []string{common.Name, common.Type, common.Value})
+			}
+		}
+	}
+
+	fileName := fmt.Sprintf("promote-%s-%s-%s", project, env, time.Now().UTC().Format("20060102150405"))
+
+	file, err := os.Create(getCsvPath(fileName))
+	if err != nil {
+		println(err.Error())
+	}
+	defer file.Close()
+
+	w := csv.NewWriter(file)
+
+	w.WriteAll(records) // calls Flush internally
+
+	if err := w.Error(); err != nil {
+		log.Fatalln("error writing csv:", err)
+	}
+
+	println("ok")
+}
+
+// ValidateParameters read parameters from a CSV and check for inconsistencies.
+func ValidateParameters(filename string, env string) {
+	// Open the file
+	csvfile, err := os.Open(getCsvPath(filename))
+	if err != nil {
+		println(err.Error())
+	}
+	//params := make(map[string]*SystemsManagerParameter)
+	params := make(SystemsManagerParameters)
+
+	// Parse the file
+	r := csv.NewReader(csvfile)
+
+	records, err := r.ReadAll()
+	if err != nil {
+		println(err.Error())
+	}
+	//fmt.Println(records)
+
+	// Create SystemsManagerParameters from CSV data
+	for _, row := range records {
+		params[row[0]] = &SystemsManagerParameter{Name: row[0], Type: row[1], Value: row[2]}
+	}
+
+	for _, param := range params {
+		if strings.HasPrefix(param.Name, "/"+env+"/common") {
+			commonvar, err := GetParameterByName(param.Name)
+			if err != nil {
+				println(param.Name + " non esiste sul parameter store... cerco altri parametri in ambiente " + env + " con lo stesso valore:")
+				commonvalues, err := GetParametersByValue(param.Value)
+				if err != nil {
+					println("non ho trovato altre variabili comuni con il valore " + param.Value + " , la nuova variabile comune " + param.Name + " può essere inserita.\n")
+				} else {
+					println("ho trovato le seguenti variabili comuni con il medesimo valore:")
+					for _, commonvalue := range commonvalues {
+						if strings.HasPrefix(commonvalue.Name, "/"+env+"/common") {
+							println("- " + commonvalue.Name)
+						}
+					}
+					println("considera la possibilità di modificare il puntamento della variabile di progetto verso una di queste common\n")
+				}
+			} else {
+				if commonvar.Value == param.Value {
+					//println(param.Name + " è già presente sul parameter store con lo stesso valore\n")
+				} else {
+					println("!! ATTENZIONE !! " + param.Name + " è già presente sul parameter store con un valore diverso !! Caricare questo CSV potrebbe provocare problemi con altri progetti\n")
+				}
+			}
+		} else {
+			projectvar, err := GetParameterByName(param.Name)
+			if err != nil {
+				println(param.Name + " non esiste sul parameter store e verrà creato\n")
+			} else {
+				if projectvar.Value == param.Value {
+					//println(param.Name + " è già presente sul parameter store con lo stesso valore\n")
+				} else {
+					println(param.Name + " è già presente sul parameter store con questo valore: " + projectvar.Value + " diverso da quello che vuoi caricare " + param.Value + "\n")
+				}
+			}
+		}
+	}
+	println("ok")
+}
+
 func getCsvPath(filename string) string {
 	return fmt.Sprintf("./%s.csv", filename)
 }
@@ -236,6 +390,12 @@ func main() {
 
 		fmt.Printf("[scrape]\n")
 		scrape.PrintDefaults()
+
+		fmt.Printf("[promote]\n")
+		promote.PrintDefaults()
+
+		fmt.Printf("[validate]\n")
+		validate.PrintDefaults()
 
 		os.Exit(0)
 	}
@@ -262,12 +422,30 @@ func main() {
 
 	case "scrape":
 		scrape.Parse(os.Args[2:])
-		if value == "" || scrapeoutput == "" {
+		if value == "" || output == "" {
 			scrape.PrintDefaults()
 			os.Exit(1)
 		}
 
-		DownloadParametersByValue(value, scrapeoutput)
+		DownloadParametersByValue(value, output)
+
+	case "promote":
+		promote.Parse(os.Args[2:])
+		if env == "" || domain == "" || project == "" {
+			promote.PrintDefaults()
+			os.Exit(1)
+		}
+
+		PromoteParameters(env, domain, project)
+
+	case "validate":
+		validate.Parse(os.Args[2:])
+		if input == "" || env == "" {
+			validate.PrintDefaults()
+			os.Exit(1)
+		}
+
+		ValidateParameters(input, env)
 
 	default:
 		flag.PrintDefaults()
@@ -288,5 +466,14 @@ func init() {
 	scrape = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	scrape.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	scrape.StringVar(&value, "value", "", "(required) The Value to search")
-	scrape.StringVar(&scrapeoutput, "output", "", "(required) Output CSV file")
+	scrape.StringVar(&output, "output", "", "(required) Output CSV file")
+	promote = flag.NewFlagSet("Promote", flag.ExitOnError)
+	promote.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	promote.StringVar(&env, "env", "", "(required) The source environment")
+	promote.StringVar(&domain, "domain", "", "(required) The project's domain")
+	promote.StringVar(&project, "project", "", "(required) The project name")
+	validate = flag.NewFlagSet("Validate", flag.ExitOnError)
+	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	validate.StringVar(&input, "input", "", "(required) Input CSV file")
+	validate.StringVar(&env, "env", "", "(required) The target environment")
 }
