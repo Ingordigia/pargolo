@@ -170,7 +170,7 @@ func GetSystemsManagerParametersByPath(path string) (params SystemsManagerParame
 }
 
 // DownloadParametersByPath retrieves the parameter from the AWS System Manager Parameter Store.
-func DownloadParametersByPath(path string, filename string) {
+func DownloadParametersByPath(path string) {
 	params, err := GetSystemsManagerParametersByPath(path)
 	if err != nil {
 		println(err.Error())
@@ -179,23 +179,28 @@ func DownloadParametersByPath(path string, filename string) {
 	records := [][]string{}
 
 	for key, value := range params {
-		records = append(records, []string{key, value.Type, value.Value})
+		if output != "" {
+			records = append(records, []string{key, value.Type, value.Value})
+		} else {
+			println(value.Type + " " + value.Name + " " + value.Value)
+		}
 	}
+	if output != "" {
+		fileName := fmt.Sprintf("download-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
-	fileName := fmt.Sprintf("download-%s-%s", filename, time.Now().UTC().Format("20060102150405"))
+		file, err := os.Create(getCsvPath(fileName))
+		if err != nil {
+			println(err.Error())
+		}
+		defer file.Close()
 
-	file, err := os.Create(getCsvPath(fileName))
-	if err != nil {
-		println(err.Error())
-	}
-	defer file.Close()
+		w := csv.NewWriter(file)
 
-	w := csv.NewWriter(file)
+		w.WriteAll(records) // calls Flush internally
 
-	w.WriteAll(records) // calls Flush internally
-
-	if err := w.Error(); err != nil {
-		log.Fatalln("error writing csv:", err)
+		if err := w.Error(); err != nil {
+			log.Fatalln("error writing csv:", err)
+		}
 	}
 }
 
@@ -229,38 +234,39 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 }
 
 // DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
-func DownloadParametersByValue(scrapevalue string, filename string) {
+func DownloadParametersByValue(scrapevalue string) {
 	params, err := GetSystemsManagerParametersByPath("/")
 	if err != nil {
 		println(err.Error())
 	}
 
 	records := [][]string{}
+	fileName := fmt.Sprintf("scrape-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
 	for key, value := range params {
-
 		if value.Value == scrapevalue {
-			fmt.Println(value.Value)
-			records = append(records, []string{key, value.Type, value.Value})
+			if output != "" {
+				records = append(records, []string{key, value.Type, value.Value})
+			} else {
+				println(value.Type + " " + value.Name + " " + value.Value)
+			}
 		}
 	}
+	if output != "" {
+		file, err := os.Create(getCsvPath(fileName))
+		if err != nil {
+			println(err.Error())
+		}
+		defer file.Close()
 
-	fileName := fmt.Sprintf("scrape-%s-%s", filename, time.Now().UTC().Format("20060102150405"))
+		w := csv.NewWriter(file)
 
-	file, err := os.Create(getCsvPath(fileName))
-	if err != nil {
-		println(err.Error())
+		w.WriteAll(records) // calls Flush internally
+
+		if err := w.Error(); err != nil {
+			log.Fatalln("error writing csv:", err)
+		}
 	}
-	defer file.Close()
-
-	w := csv.NewWriter(file)
-
-	w.WriteAll(records) // calls Flush internally
-
-	if err := w.Error(); err != nil {
-		log.Fatalln("error writing csv:", err)
-	}
-
 	println("ok")
 }
 
@@ -405,12 +411,12 @@ func main() {
 
 	case "download":
 		download.Parse(os.Args[2:])
-		if prefix == "" || output == "" {
+		if prefix == "" {
 			download.PrintDefaults()
 			os.Exit(1)
 		}
 
-		DownloadParametersByPath(prefix, output)
+		DownloadParametersByPath(prefix)
 
 	case "upload":
 		upload.Parse(os.Args[2:])
@@ -423,12 +429,12 @@ func main() {
 
 	case "scrape":
 		scrape.Parse(os.Args[2:])
-		if value == "" || output == "" {
+		if value == "" {
 			scrape.PrintDefaults()
 			os.Exit(1)
 		}
 
-		DownloadParametersByValue(value, output)
+		DownloadParametersByValue(value)
 
 	case "promote":
 		promote.Parse(os.Args[2:])
@@ -459,7 +465,7 @@ func init() {
 	download = flag.NewFlagSet("SearchByPath", flag.ExitOnError)
 	download.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	download.StringVar(&prefix, "prefix", "", "(required) prefix path to download")
-	download.StringVar(&output, "output", "", "(required) Output CSV file")
+	download.StringVar(&output, "output", "", "(optional) Output CSV file")
 	upload = flag.NewFlagSet("Upload", flag.ExitOnError)
 	upload.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	upload.StringVar(&input, "input", "", "(required) Input CSV file")
@@ -467,11 +473,11 @@ func init() {
 	scrape = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	scrape.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	scrape.StringVar(&value, "value", "", "(required) The Value to search")
-	scrape.StringVar(&output, "output", "", "(required) Output CSV file")
+	scrape.StringVar(&output, "output", "", "(optional) Output CSV file")
 	promote = flag.NewFlagSet("Promote", flag.ExitOnError)
 	promote.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	promote.StringVar(&env, "env", "", "(required) The source environment")
-	promote.StringVar(&domain, "domain", "", "(required) The project's domain")
+	promote.StringVar(&domain, "domain", "", "(required) The project domain")
 	promote.StringVar(&project, "project", "", "(required) The project name")
 	validate = flag.NewFlagSet("Validate", flag.ExitOnError)
 	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")

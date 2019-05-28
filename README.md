@@ -27,7 +27,7 @@ $ ./pargolo.exe
 
 [download]
   -output string
-        (required) Output CSV file
+        (optional) Output CSV file
   -prefix string
         (required) prefix path to download
   -profile string
@@ -41,7 +41,7 @@ $ ./pargolo.exe
         (optional) AWS profile
 [scrape]
   -output string
-        (required) Output CSV file
+        (optional) Output CSV file
   -profile string
         (optional) AWS profile
   -value string
