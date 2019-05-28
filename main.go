@@ -35,6 +35,7 @@ var upload *flag.FlagSet
 var scrape *flag.FlagSet
 var promote *flag.FlagSet
 var validate *flag.FlagSet
+var allparams = make(map[string]*SystemsManagerParameter)
 
 // CreateSession returns a new AWS session
 func CreateSession() (sess *session.Session, err error) {
@@ -119,10 +120,13 @@ func GetParameterByName(paramName string) (param SystemsManagerParameter, err er
 
 // GetParametersByValue scrape the entire parameter store searching for all keys with a specific value
 func GetParametersByValue(paramValue string) (params SystemsManagerParameters, err error) {
-	allparams, err := GetSystemsManagerParametersByPath("/")
-	if err != nil {
-		println(err.Error())
+	if len(allparams) == 0 {
+		allparams, err = GetSystemsManagerParametersByPath("/")
+		if err != nil {
+			println(err.Error())
+		}
 	}
+
 	params = make(map[string]*SystemsManagerParameter)
 
 	for _, value := range allparams {
@@ -164,7 +168,7 @@ func GetSystemsManagerParametersByPath(path string) (params SystemsManagerParame
 		for _, par := range output.Parameters {
 			params[*par.Name] = &SystemsManagerParameter{Name: *par.Name, Type: *par.Type, Value: *par.Value}
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 	return params, nil
 }
