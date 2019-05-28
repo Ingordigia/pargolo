@@ -335,35 +335,36 @@ func ValidateParameters(filename string, env string) {
 		if strings.HasPrefix(param.Name, "/"+env+"/common") {
 			commonvar, err := GetParameterByName(param.Name)
 			if err != nil {
-				println(param.Name + " non esiste sul parameter store... cerco altri parametri in ambiente " + env + " con lo stesso valore:")
+				//println(param.Name + " non esiste sul parameter store... cerco altri parametri in ambiente " + env + " con lo stesso valore:")
 				commonvalues, err := GetParametersByValue(param.Value)
 				if err != nil {
-					println("non ho trovato altre variabili comuni con il valore " + param.Value + " , la nuova variabile comune " + param.Name + " può essere inserita.\n")
+					//println("non ho trovato altre variabili comuni con il valore " + param.Value + " , la nuova variabile comune " + param.Name + " può essere inserita.")
+					println("MISSING -> CREATE      - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
-					println("ho trovato le seguenti variabili comuni con il medesimo valore:")
+					println("MISSING -> DUPLICATE   - " + param.Name + " WITH VALUE " + param.Value)
 					for _, commonvalue := range commonvalues {
 						if strings.HasPrefix(commonvalue.Name, "/"+env+"/common") {
-							println("- " + commonvalue.Name)
+							println("- " + commonvalue.Name + " with value " + commonvalue.Value)
 						}
 					}
-					println("considera la possibilità di modificare il puntamento della variabile di progetto verso una di queste common\n")
+					//println("considera la possibilità di modificare il puntamento della variabile di progetto verso una di queste common")
 				}
 			} else {
 				if commonvar.Value == param.Value {
-					//println(param.Name + " è già presente sul parameter store con lo stesso valore\n")
+					println("PRESENT -> MAINTAIN    - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
-					println("!! ATTENZIONE !! " + param.Name + " è già presente sul parameter store con un valore diverso !! Caricare questo CSV potrebbe provocare problemi con altri progetti\n")
+					println("PRESENT -> DESTRUCTIVE - " + param.Name + " WITH VALUE " + param.Value + " Caricare questo CSV potrebbe provocare problemi con altri progetti")
 				}
 			}
 		} else {
 			projectvar, err := GetParameterByName(param.Name)
 			if err != nil {
-				println(param.Name + " non esiste sul parameter store e verrà creato\n")
+				println("MISSING -> CREATE      - " + param.Name + " WITH VALUE " + param.Value + "")
 			} else {
 				if projectvar.Value == param.Value {
-					//println(param.Name + " è già presente sul parameter store con lo stesso valore\n")
+					println("PRESENT -> MAINTAIN    - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
-					println(param.Name + " è già presente sul parameter store con questo valore: " + projectvar.Value + " diverso da quello che vuoi caricare " + param.Value + "\n")
+					println("PRESENT -> OVERWRITE   - " + projectvar.Value + " WITH VALUE " + param.Value)
 				}
 			}
 		}
