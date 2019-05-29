@@ -30,10 +30,10 @@ type SystemsManagerParameters map[string]*SystemsManagerParameter
 
 var profile, prefix, output, input, value, env, domain, project string
 var overwrite bool
-var download *flag.FlagSet
+var searchbypath *flag.FlagSet
 var upload *flag.FlagSet
-var scrape *flag.FlagSet
-var promote *flag.FlagSet
+var searchbyvalue *flag.FlagSet
+var export *flag.FlagSet
 var validate *flag.FlagSet
 var allparams = make(map[string]*SystemsManagerParameter)
 
@@ -121,7 +121,7 @@ func GetParameterByName(paramName string) (param SystemsManagerParameter, err er
 // GetParametersByValue scrape the entire parameter store searching for all keys with a specific value
 func GetParametersByValue(paramValue string) (params SystemsManagerParameters, err error) {
 	if len(allparams) == 0 {
-		allparams, err = GetSystemsManagerParametersByPath("/")
+		allparams, err = GetParametersByPath("/")
 		if err != nil {
 			println(err.Error())
 		}
@@ -131,7 +131,6 @@ func GetParametersByValue(paramValue string) (params SystemsManagerParameters, e
 
 	for _, value := range allparams {
 		if value.Value == paramValue {
-			//fmt.Println(value.Value)
 			params[value.Name] = &SystemsManagerParameter{Name: value.Name, Type: value.Type, Value: value.Value}
 		}
 	}
@@ -141,8 +140,8 @@ func GetParametersByValue(paramValue string) (params SystemsManagerParameters, e
 	return params, nil
 }
 
-// GetSystemsManagerParametersByPath retrieves the parameter from the AWS System Manager Parameter Store starting from the initial path recursively.
-func GetSystemsManagerParametersByPath(path string) (params SystemsManagerParameters, err error) {
+// GetParametersByPath retrieves the parameter from the AWS System Manager Parameter Store starting from the initial path recursively.
+func GetParametersByPath(path string) (params SystemsManagerParameters, err error) {
 	sess, err := CreateSession()
 	if err != nil {
 		return nil, err
@@ -175,7 +174,7 @@ func GetSystemsManagerParametersByPath(path string) (params SystemsManagerParame
 
 // DownloadParametersByPath retrieves the parameter from the AWS System Manager Parameter Store.
 func DownloadParametersByPath(path string) {
-	params, err := GetSystemsManagerParametersByPath(path)
+	params, err := GetParametersByPath(path)
 	if err != nil {
 		println(err.Error())
 	}
@@ -190,7 +189,7 @@ func DownloadParametersByPath(path string) {
 		}
 	}
 	if output != "" {
-		fileName := fmt.Sprintf("download-%s-%s", output, time.Now().UTC().Format("20060102150405"))
+		fileName := fmt.Sprintf("searchbypath-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
 		file, err := os.Create(getCsvPath(fileName))
 		if err != nil {
@@ -238,22 +237,20 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 }
 
 // DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
-func DownloadParametersByValue(scrapevalue string) {
-	params, err := GetSystemsManagerParametersByPath("/")
+func DownloadParametersByValue(targetvalue string) {
+	params, err := GetParametersByValue(targetvalue)
 	if err != nil {
 		println(err.Error())
 	}
 
 	records := [][]string{}
-	fileName := fmt.Sprintf("scrape-%s-%s", output, time.Now().UTC().Format("20060102150405"))
+	fileName := fmt.Sprintf("searchbyvalue-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
 	for key, value := range params {
-		if value.Value == scrapevalue {
-			if output != "" {
-				records = append(records, []string{key, value.Type, value.Value})
-			} else {
-				println(value.Type + " " + value.Name + " " + value.Value)
-			}
+		if output != "" {
+			records = append(records, []string{key, value.Type, value.Value})
+		} else {
+			println(value.Type + " " + value.Name + " " + value.Value)
 		}
 	}
 	if output != "" {
@@ -271,12 +268,11 @@ func DownloadParametersByValue(scrapevalue string) {
 			log.Fatalln("error writing csv:", err)
 		}
 	}
-	println("ok")
 }
 
-// PromoteParameters download all parameters linked to a project.
-func PromoteParameters(env string, domain string, project string) {
-	params, err := GetSystemsManagerParametersByPath("/" + env + "/" + domain + "/" + project)
+// ExportParameters download all parameters linked to a project.
+func ExportParameters(env string, domain string, project string) {
+	params, err := GetParametersByPath("/" + env + "/" + domain + "/" + project)
 	if err != nil {
 		println(err.Error())
 	}
@@ -298,7 +294,7 @@ func PromoteParameters(env string, domain string, project string) {
 		}
 	}
 
-	fileName := fmt.Sprintf("promote-%s-%s-%s", project, env, time.Now().UTC().Format("20060102150405"))
+	fileName := fmt.Sprintf("export-%s-%s-%s", project, env, time.Now().UTC().Format("20060102150405"))
 
 	file, err := os.Create(getCsvPath(fileName))
 	if err != nil {
@@ -393,17 +389,17 @@ func main() {
 
 		flag.PrintDefaults()
 
-		fmt.Printf("[download]\n")
-		download.PrintDefaults()
+		fmt.Printf("[searchbypath]\n")
+		searchbypath.PrintDefaults()
+
+		fmt.Printf("[searchbyvalue]\n")
+		searchbyvalue.PrintDefaults()
 
 		fmt.Printf("[upload]\n")
 		upload.PrintDefaults()
 
-		fmt.Printf("[scrape]\n")
-		scrape.PrintDefaults()
-
-		fmt.Printf("[promote]\n")
-		promote.PrintDefaults()
+		fmt.Printf("[export]\n")
+		export.PrintDefaults()
 
 		fmt.Printf("[validate]\n")
 		validate.PrintDefaults()
@@ -413,10 +409,10 @@ func main() {
 
 	switch os.Args[1] {
 
-	case "download":
-		download.Parse(os.Args[2:])
+	case "searchbypath":
+		searchbypath.Parse(os.Args[2:])
 		if prefix == "" {
-			download.PrintDefaults()
+			searchbypath.PrintDefaults()
 			os.Exit(1)
 		}
 
@@ -431,23 +427,23 @@ func main() {
 
 		UploadParametersFromCsv(input, overwrite)
 
-	case "scrape":
-		scrape.Parse(os.Args[2:])
+	case "searchbyvalue":
+		searchbyvalue.Parse(os.Args[2:])
 		if value == "" {
-			scrape.PrintDefaults()
+			searchbyvalue.PrintDefaults()
 			os.Exit(1)
 		}
 
 		DownloadParametersByValue(value)
 
-	case "promote":
-		promote.Parse(os.Args[2:])
+	case "export":
+		export.Parse(os.Args[2:])
 		if env == "" || domain == "" || project == "" {
-			promote.PrintDefaults()
+			export.PrintDefaults()
 			os.Exit(1)
 		}
 
-		PromoteParameters(env, domain, project)
+		ExportParameters(env, domain, project)
 
 	case "validate":
 		validate.Parse(os.Args[2:])
@@ -466,23 +462,23 @@ func main() {
 }
 
 func init() {
-	download = flag.NewFlagSet("SearchByPath", flag.ExitOnError)
-	download.StringVar(&profile, "profile", "", "(optional) AWS profile")
-	download.StringVar(&prefix, "prefix", "", "(required) prefix path to download")
-	download.StringVar(&output, "output", "", "(optional) Output CSV file")
+	searchbypath = flag.NewFlagSet("SearchByPath", flag.ExitOnError)
+	searchbypath.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	searchbypath.StringVar(&prefix, "prefix", "", "(required) prefix path to download")
+	searchbypath.StringVar(&output, "output", "", "(optional) Output CSV file")
+	searchbyvalue = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
+	searchbyvalue.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	searchbyvalue.StringVar(&value, "value", "", "(required) The Value to search")
+	searchbyvalue.StringVar(&output, "output", "", "(optional) Output CSV file")
 	upload = flag.NewFlagSet("Upload", flag.ExitOnError)
 	upload.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	upload.StringVar(&input, "input", "", "(required) Input CSV file")
 	upload.BoolVar(&overwrite, "overwrite", false, "(optional) Overwrite the value if the key already exists")
-	scrape = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
-	scrape.StringVar(&profile, "profile", "", "(optional) AWS profile")
-	scrape.StringVar(&value, "value", "", "(required) The Value to search")
-	scrape.StringVar(&output, "output", "", "(optional) Output CSV file")
-	promote = flag.NewFlagSet("Promote", flag.ExitOnError)
-	promote.StringVar(&profile, "profile", "", "(optional) AWS profile")
-	promote.StringVar(&env, "env", "", "(required) The source environment")
-	promote.StringVar(&domain, "domain", "", "(required) The project domain")
-	promote.StringVar(&project, "project", "", "(required) The project name")
+	export = flag.NewFlagSet("Export", flag.ExitOnError)
+	export.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	export.StringVar(&env, "env", "", "(required) The source environment")
+	export.StringVar(&domain, "domain", "", "(required) The project domain")
+	export.StringVar(&project, "project", "", "(required) The project name")
 	validate = flag.NewFlagSet("Validate", flag.ExitOnError)
 	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	validate.StringVar(&input, "input", "", "(required) Input CSV file")
