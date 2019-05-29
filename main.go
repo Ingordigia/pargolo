@@ -28,7 +28,7 @@ type SystemsManagerParameter struct {
 // SystemsManagerParameters is  a map of parameter names and SystemsManagerParameter objects
 type SystemsManagerParameters map[string]*SystemsManagerParameter
 
-var profile, prefix, output, input, value, env, domain, project string
+var profile, prefix, output, input, value, env, domain, filter, project string
 var overwrite bool
 var searchbypath *flag.FlagSet
 var upload *flag.FlagSet
@@ -237,7 +237,7 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 }
 
 // DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
-func DownloadParametersByValue(targetvalue string) {
+func DownloadParametersByValue(targetvalue string, filterpath string) {
 	params, err := GetParametersByValue(targetvalue)
 	if err != nil {
 		println(err.Error())
@@ -247,10 +247,12 @@ func DownloadParametersByValue(targetvalue string) {
 	fileName := fmt.Sprintf("searchbyvalue-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
 	for key, value := range params {
-		if output != "" {
-			records = append(records, []string{key, value.Type, value.Value})
-		} else {
-			println(value.Type + " " + value.Name + " " + value.Value)
+		if strings.HasPrefix(value.Name, filterpath) {
+			if output != "" {
+				records = append(records, []string{key, value.Type, value.Value})
+			} else {
+				println(value.Type + " " + value.Name + " " + value.Value)
+			}
 		}
 	}
 	if output != "" {
@@ -434,7 +436,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		DownloadParametersByValue(value)
+		DownloadParametersByValue(value, filter)
 
 	case "export":
 		export.Parse(os.Args[2:])
@@ -469,6 +471,7 @@ func init() {
 	searchbyvalue = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	searchbyvalue.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	searchbyvalue.StringVar(&value, "value", "", "(required) The Value to search")
+	searchbyvalue.StringVar(&filter, "filter", "", "(optional) Filters the results by path")
 	searchbyvalue.StringVar(&output, "output", "", "(optional) Output CSV file")
 	upload = flag.NewFlagSet("Upload", flag.ExitOnError)
 	upload.StringVar(&profile, "profile", "", "(optional) AWS profile")
