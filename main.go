@@ -28,7 +28,7 @@ type SystemsManagerParameter struct {
 // SystemsManagerParameters is  a map of parameter names and SystemsManagerParameter objects
 type SystemsManagerParameters map[string]*SystemsManagerParameter
 
-var profile, prefix, output, input, value, env, domain, filter, project string
+var profile, path, output, input, value, env, domain, filter, project string
 var overwrite bool
 var searchbypath *flag.FlagSet
 var upload *flag.FlagSet
@@ -223,7 +223,6 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 	if err != nil {
 		println(err.Error())
 	}
-	fmt.Println(records)
 
 	if len(records) > 0 {
 		for _, row := range records {
@@ -233,7 +232,6 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 			}
 		}
 	}
-	println("ok")
 }
 
 // DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
@@ -311,8 +309,6 @@ func ExportParameters(env string, domain string, project string) {
 	if err := w.Error(); err != nil {
 		log.Fatalln("error writing csv:", err)
 	}
-
-	println("ok")
 }
 
 // ValidateParameters read parameters from a CSV and check for inconsistencies.
@@ -322,7 +318,7 @@ func ValidateParameters(filename string, env string) {
 	if err != nil {
 		println(err.Error())
 	}
-	//params := make(map[string]*SystemsManagerParameter)
+
 	params := make(SystemsManagerParameters)
 
 	// Parse the file
@@ -332,7 +328,6 @@ func ValidateParameters(filename string, env string) {
 	if err != nil {
 		println(err.Error())
 	}
-	//fmt.Println(records)
 
 	// Create SystemsManagerParameters from CSV data
 	for _, row := range records {
@@ -343,10 +338,8 @@ func ValidateParameters(filename string, env string) {
 		if strings.HasPrefix(param.Name, "/"+env+"/common") {
 			commonvar, err := GetParameterByName(param.Name)
 			if err != nil {
-				//println(param.Name + " non esiste sul parameter store... cerco altri parametri in ambiente " + env + " con lo stesso valore:")
 				commonvalues, err := GetParametersByValue(param.Value)
 				if err != nil {
-					//println("non ho trovato altre variabili comuni con il valore " + param.Value + " , la nuova variabile comune " + param.Name + " può essere inserita.")
 					println("MISSING -> CREATE      - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
 					println("MISSING -> DUPLICATE   - " + param.Name + " WITH VALUE " + param.Value)
@@ -355,7 +348,6 @@ func ValidateParameters(filename string, env string) {
 							println("- " + commonvalue.Name + " with value " + commonvalue.Value)
 						}
 					}
-					//println("considera la possibilità di modificare il puntamento della variabile di progetto verso una di queste common")
 				}
 			} else {
 				if commonvar.Value == param.Value {
@@ -377,7 +369,6 @@ func ValidateParameters(filename string, env string) {
 			}
 		}
 	}
-	println("ok")
 }
 
 func getCsvPath(filename string) string {
@@ -413,12 +404,12 @@ func main() {
 
 	case "searchbypath":
 		searchbypath.Parse(os.Args[2:])
-		if prefix == "" {
+		if path == "" {
 			searchbypath.PrintDefaults()
 			os.Exit(1)
 		}
 
-		DownloadParametersByPath(prefix)
+		DownloadParametersByPath(path)
 
 	case "upload":
 		upload.Parse(os.Args[2:])
@@ -466,7 +457,7 @@ func main() {
 func init() {
 	searchbypath = flag.NewFlagSet("SearchByPath", flag.ExitOnError)
 	searchbypath.StringVar(&profile, "profile", "", "(optional) AWS profile")
-	searchbypath.StringVar(&prefix, "prefix", "", "(required) prefix path to download")
+	searchbypath.StringVar(&path, "path", "", "(required) prefix path to download")
 	searchbypath.StringVar(&output, "output", "", "(optional) Output CSV file")
 	searchbyvalue = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	searchbyvalue.StringVar(&profile, "profile", "", "(optional) AWS profile")
