@@ -14,3 +14,6 @@ pargolo
 
 # CSV created by Pargolo
 *.csv
+
+# Zipped files
+*.zip
