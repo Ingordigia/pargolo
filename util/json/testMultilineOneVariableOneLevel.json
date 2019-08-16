@@ -1,0 +1,21 @@
+{
+  "Environment": "",
+  "WebApp":{
+    "Port":""
+  },
+  "Log":{
+    "RollingFile": {
+      "File": ""
+    }
+  },
+  "OAuth2": {
+    "SecretKey": "",
+    "ClientSecret": "",
+    "CacheRedis": {
+      "Endpoint":""
+    }
+  },
+  "TrackResponse":false,
+  "ApiTrackingFilter":"sandbox;docs;healthcheck;hangfire;favicon.ico",
+  "MaxRetryAttempts" : 5
+}

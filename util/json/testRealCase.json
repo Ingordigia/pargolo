@@ -1,0 +1,78 @@
+{
+  "Environment": "",
+  "ProjectName": "ProjectName",
+  "Facility": "Facility",
+  "AppClientId":"",
+  "OAuth2Enable": "false",
+  "WebApp":{
+    "Hostname":"0.0.0.0",
+    "Port":"",
+    "BaseHost":"api",
+    "Version":"1.0.0",
+    "DebugMode": false,
+    "Schema":"http"
+  },
+  "Sentry":{
+    "SentryDSN":""
+  },
+  "Log":{
+    "AppenderType": "RollingFile",
+    "RollingFile": {
+      "File": "",
+      "MaximumFileSizeMB": 50,
+      "MaxSizeRollBackups" : 10,
+      "WriteStdout": false
+    }
+  },
+  "ConsoleCredentials":{
+    "Username":	"",
+    "Password":	""
+  },
+  "ConsoleDbSettings":{
+    "MaxIdleConns": 100,
+    "ConnMaxLifeTime": 1,
+    "MaxOpenConns": 100
+  },
+  "Redis":{
+    "Endpoint":"",
+    "Port": "",
+    "Database": "",
+    "ConnectionTimeout":3,
+    "OperationTimeout":3
+  },
+  "AccountsRedis":{
+    "Endpoint":"",
+    "Port": "",
+    "Database": "",
+    "ConnectionTimeout":3,
+    "OperationTimeout":3
+  },
+  "OAuth2": {
+    "SecretKey": "",
+    "ClientID": "ClientID",
+    "ClientSecret": "",
+    "CacheRedis": {
+      "Endpoint":"",
+      "Port": "",
+      "Database": "",
+      "ConnectionTimeout":3,
+      "OperationTimeout":3
+    }
+  },
+  "ServiceEndpoints": {
+    "Endpoint1": {
+      "Endpoint":"",
+      "Type":"go",
+      "Timeout": 10
+    },
+    "Endpoint2": {
+      "Endpoint":"",
+      "Type":"go",
+      "Timeout": 10
+    }
+  },
+  "TrackingIdPropertyName":"TrackingIdPropertyName",
+  "TrackResponse":false,
+  "ApiTrackingFilter":"sandbox;docs;healthcheck;hangfire;favicon.ico",
+  "MaxRetryAttempts" : 5
+}
