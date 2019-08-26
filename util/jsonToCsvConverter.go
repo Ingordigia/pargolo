@@ -34,7 +34,7 @@ func (c *jsonToCsvConverter) getRows(jsonMap map[string]interface{}, onlyEmpty b
 		kind := reflect.TypeOf(value).Kind()
 		if kind != reflect.Map {
 			if !onlyEmpty || fmt.Sprintf("%v", value) == "" {
-				finalKey = fmt.Sprintf("%s,string,%v", key, value)
+				finalKey = fmt.Sprintf("%s,String,%v", key, value)
 				ret = append(ret, finalKey)
 			}
 		} else {
