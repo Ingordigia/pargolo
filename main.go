@@ -403,7 +403,7 @@ func InitializeParameters(filename string, env string, domain string, project st
 		var record []string
 		record = append(record, "/"+env+"/"+domain+"/"+project+"/"+key)
 		record = append(record, "String")
-		record = append(record, "VALUE")
+		record = append(record, "")
 		writer.Write(record)
 	}
 
