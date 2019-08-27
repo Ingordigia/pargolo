@@ -16,5 +16,8 @@ pargolo
 # CSV created by Pargolo
 *.csv
 
+# JSON files used by "initialize" features
+*.json
+
 # Zipped files
 *.zip
