@@ -18,19 +18,6 @@ func TestOneVariableOneLevel(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	assert.Equal(t, `Environment`, actualCsv[0])
-}
-
-func TestOneVariableOneLevelWithValue_ButOnlyEmpty_ShouldReturnNothing(t *testing.T) {
-	//input := `{"Environment": ""}`
-	inputPath := "json/testOneVariableOneLevelWithValue.json"
-	// check if file is json
-	file, _ := ioutil.ReadFile(inputPath)
-
-	actualCsv, err := NewJSONToCsvConverter().Convert(file)
-	if err != nil {
-		t.Fail()
-	}
 	assert.Equal(t, 0, len(actualCsv))
 }
 
@@ -89,7 +76,7 @@ func TestMultilineOneVariableOneLevel(t *testing.T) {
 	assert.Equal(t, true, strings.Contains(actual, `OAuth2/SecretKey`))
 	assert.Equal(t, true, strings.Contains(actual, `OAuth2/ClientSecret`))
 	assert.Equal(t, true, strings.Contains(actual, `OAuth2/CacheRedis/Endpoint`))
-	assert.Equal(t, true, strings.Contains(actual, `Environment`))
+	assert.Equal(t, false, strings.Contains(actual, `Environment`))
 	assert.Equal(t, true, strings.Contains(actual, `WebApp/Port`))
 	assert.Equal(t, true, strings.Contains(actual, `Log/RollingFile/File`))
 }
@@ -121,7 +108,7 @@ func TestRealCase(t *testing.T) {
 	}
 	actual := strings.Join(actualCsv, "|")
 
-	assert.Equal(t, true, strings.Contains(actual, `Environment`))
+	assert.Equal(t, false, strings.Contains(actual, `Environment`))
 	assert.Equal(t, true, strings.Contains(actual, `AppClientId`))
 	assert.Equal(t, true, strings.Contains(actual, `WebApp/Port`))
 	assert.Equal(t, true, strings.Contains(actual, `Sentry/SentryDSN`))

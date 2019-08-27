@@ -6,6 +6,12 @@ import (
 	"reflect"
 )
 
+var keysToIgnore = map[string]bool{
+	"Environment":  true,
+	"AWSAccessKey": true,
+	"AWSSecretKey": true,
+}
+
 type converter interface {
 	Convert(inputJSON []byte) ([]string, error)
 }
@@ -35,7 +41,7 @@ func (c *jsonToCsvConverter) getRows(jsonMap map[string]interface{}) []string {
 		finalKey := key
 		kind := reflect.TypeOf(value).Kind()
 		if kind != reflect.Map {
-			if fmt.Sprintf("%v", value) == "" {
+			if fmt.Sprintf("%v", value) == "" && !keysToIgnore[finalKey] {
 				ret = append(ret, finalKey)
 			}
 		} else {
