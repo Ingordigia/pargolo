@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/ingordigia/pargolo/util"
 )
 
 // Parameters is  a map of parameter names and values
@@ -35,6 +37,7 @@ var upload *flag.FlagSet
 var searchbyvalue *flag.FlagSet
 var export *flag.FlagSet
 var validate *flag.FlagSet
+var initialize *flag.FlagSet
 var allparams = make(map[string]*SystemsManagerParameter)
 
 // CreateSession returns a new AWS session
@@ -371,6 +374,43 @@ func ValidateParameters(filename string, env string) {
 	}
 }
 
+// InitializeParameters read a Json config file and extract blank parameters and create a CSV file for pargolo upload.
+func InitializeParameters(filename string, env string, domain string, project string) {
+
+	inputPath := filename
+	// read data from file
+	jsondatafromfile, err := ioutil.ReadFile(inputPath)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Create csv structure from json data
+	actualCsv, err := util.NewJSONToCsvConverter().Convert(jsondatafromfile)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//create output csvfile
+	csvdatafile, err := os.Create("./data.csv")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer csvdatafile.Close()
+
+	writer := csv.NewWriter(csvdatafile)
+
+	for _, key := range actualCsv {
+		var record []string
+		record = append(record, "/"+env+"/"+domain+"/"+project+"/"+key)
+		record = append(record, "String")
+		record = append(record, "VALUE")
+		writer.Write(record)
+	}
+
+	// remember to flush!
+	writer.Flush()
+}
+
 func getCsvPath(filename string) string {
 	return fmt.Sprintf("./%s.csv", filename)
 }
@@ -382,20 +422,23 @@ func main() {
 
 		flag.PrintDefaults()
 
-		fmt.Printf("[searchbypath]\n")
+		fmt.Printf("\n--- searchbypath ---\n")
 		searchbypath.PrintDefaults()
 
-		fmt.Printf("[searchbyvalue]\n")
+		fmt.Printf("\n--- searchbyvalue ---\n")
 		searchbyvalue.PrintDefaults()
 
-		fmt.Printf("[upload]\n")
+		fmt.Printf("\n--- upload ---\n")
 		upload.PrintDefaults()
 
-		fmt.Printf("[export]\n")
+		fmt.Printf("\n--- export ---\n")
 		export.PrintDefaults()
 
-		fmt.Printf("[validate]\n")
+		fmt.Printf("\n--- validate ---\n")
 		validate.PrintDefaults()
+
+		fmt.Printf("\n--- initialize ---\n")
+		initialize.PrintDefaults()
 
 		os.Exit(0)
 	}
@@ -447,6 +490,15 @@ func main() {
 
 		ValidateParameters(input, env)
 
+	case "initialize":
+		initialize.Parse(os.Args[2:])
+		if input == "" || env == "" || domain == "" || project == "" {
+			initialize.PrintDefaults()
+			os.Exit(1)
+		}
+
+		InitializeParameters(input, env, domain, project)
+
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -477,4 +529,10 @@ func init() {
 	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	validate.StringVar(&input, "input", "", "(required) Input CSV file")
 	validate.StringVar(&env, "env", "", "(required) The target environment")
+	initialize = flag.NewFlagSet("Initialize", flag.ExitOnError)
+	initialize.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	initialize.StringVar(&input, "input", "", "(required) Input CSV file")
+	initialize.StringVar(&env, "env", "", "(required) The source environment")
+	initialize.StringVar(&domain, "domain", "", "(required) The project domain")
+	initialize.StringVar(&project, "project", "", "(required) The project name")
 }
