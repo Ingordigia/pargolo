@@ -17,7 +17,7 @@ pargolo
 *.csv
 
 # JSON files used by "initialize" features
-*.json
+config.json
 
 # Zipped files
 *.zip
