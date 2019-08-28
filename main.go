@@ -40,6 +40,22 @@ var validate *flag.FlagSet
 var initialize *flag.FlagSet
 var allparams = make(map[string]*SystemsManagerParameter)
 
+// PrintMapToShell prints the parameters map to the shell standard Output
+func PrintMapToShell(params SystemsManagerParameters) {
+	maxKeyLength := 0
+
+	if output == "" {
+		for key := range params {
+			if maxKeyLength < len(key) {
+				maxKeyLength = len(key)
+			}
+		}
+	}
+	for _, value := range params {
+		println(value.Type + " " + value.Name + strings.Repeat("_", maxKeyLength+1-len(value.Name)) + value.Value)
+	}
+}
+
 // CreateSession returns a new AWS session
 func CreateSession() (sess *session.Session, err error) {
 
@@ -184,14 +200,10 @@ func DownloadParametersByPath(path string) {
 
 	records := [][]string{}
 
-	for key, value := range params {
-		if output != "" {
-			records = append(records, []string{key, value.Type, value.Value})
-		} else {
-			println(value.Type + " " + value.Name + " " + value.Value)
-		}
-	}
 	if output != "" {
+		for key, value := range params {
+			records = append(records, []string{key, value.Type, value.Value})
+		}
 		fileName := fmt.Sprintf("searchbypath-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
 		file, err := os.Create(getCsvPath(fileName))
@@ -207,6 +219,8 @@ func DownloadParametersByPath(path string) {
 		if err := w.Error(); err != nil {
 			log.Fatalln("error writing csv:", err)
 		}
+	} else {
+		PrintMapToShell(params)
 	}
 }
 
@@ -247,16 +261,12 @@ func DownloadParametersByValue(targetvalue string, filterpath string) {
 	records := [][]string{}
 	fileName := fmt.Sprintf("searchbyvalue-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
-	for key, value := range params {
-		if strings.HasPrefix(value.Name, filterpath) {
-			if output != "" {
+	if output != "" {
+		for key, value := range params {
+			if strings.HasPrefix(value.Name, filterpath) {
 				records = append(records, []string{key, value.Type, value.Value})
-			} else {
-				println(value.Type + " " + value.Name + " " + value.Value)
 			}
 		}
-	}
-	if output != "" {
 		file, err := os.Create(getCsvPath(fileName))
 		if err != nil {
 			println(err.Error())
@@ -270,6 +280,8 @@ func DownloadParametersByValue(targetvalue string, filterpath string) {
 		if err := w.Error(); err != nil {
 			log.Fatalln("error writing csv:", err)
 		}
+	} else {
+		PrintMapToShell(params)
 	}
 }
 
@@ -412,6 +424,9 @@ func InitializeParameters(filename string, env string, domain string, project st
 }
 
 func getCsvPath(filename string) string {
+	if strings.HasSuffix(filename, ".csv") {
+		return filename
+	}
 	return fmt.Sprintf("./%s.csv", filename)
 }
 
@@ -531,7 +546,7 @@ func init() {
 	validate.StringVar(&env, "env", "", "(required) The target environment")
 	initialize = flag.NewFlagSet("Initialize", flag.ExitOnError)
 	initialize.StringVar(&profile, "profile", "", "(optional) AWS profile")
-	initialize.StringVar(&input, "input", "", "(required) Input CSV file")
+	initialize.StringVar(&input, "input", "", "(required) Input JSON config file")
 	initialize.StringVar(&env, "env", "", "(required) The source environment")
 	initialize.StringVar(&domain, "domain", "", "(required) The project domain")
 	initialize.StringVar(&project, "project", "", "(required) The project name")
