@@ -43,16 +43,20 @@ var allparams = make(map[string]*SystemsManagerParameter)
 // PrintMapToShell prints the parameters map to the shell standard Output
 func PrintMapToShell(params SystemsManagerParameters) {
 	maxKeyLength := 0
+	maxTypeLenght := 0
 
 	if output == "" {
-		for key := range params {
-			if maxKeyLength < len(key) {
-				maxKeyLength = len(key)
+		for _, value := range params {
+			if maxKeyLength < len(value.Name) {
+				maxKeyLength = len(value.Name)
+			}
+			if maxTypeLenght < len(value.Type) {
+				maxTypeLenght = len(value.Type)
 			}
 		}
 	}
 	for _, value := range params {
-		println(value.Type + " " + value.Name + strings.Repeat("_", maxKeyLength+1-len(value.Name)) + value.Value)
+		println(value.Type + strings.Repeat(" ", maxTypeLenght+1-len(value.Type)) + value.Name + strings.Repeat(" ", maxKeyLength+1-len(value.Name)) + value.Value)
 	}
 }
 
@@ -433,8 +437,6 @@ func main() {
 	flag.Parse()
 
 	if len(os.Args) < 2 {
-
-		flag.PrintDefaults()
 
 		fmt.Printf("\n--- searchbypath ---\n")
 		searchbypath.PrintDefaults()
