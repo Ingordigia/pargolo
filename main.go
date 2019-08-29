@@ -31,7 +31,7 @@ type SystemsManagerParameter struct {
 type SystemsManagerParameters map[string]*SystemsManagerParameter
 
 var profile, path, output, input, value, env, domain, filter, project string
-var overwrite bool
+var overwrite, recursive bool
 var searchbypath *flag.FlagSet
 var upload *flag.FlagSet
 var searchbyvalue *flag.FlagSet
@@ -265,12 +265,14 @@ func DownloadParametersByValue(targetvalue string, filterpath string) {
 	records := [][]string{}
 	fileName := fmt.Sprintf("searchbyvalue-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
-	if output != "" {
-		for key, value := range params {
-			if strings.HasPrefix(value.Name, filterpath) {
-				records = append(records, []string{key, value.Type, value.Value})
-			}
+	for key, value := range params {
+		if strings.HasPrefix(value.Name, filterpath) {
+			records = append(records, []string{key, value.Type, value.Value})
+		} else {
+			delete(params, value.Name)
 		}
+	}
+	if output != "" {
 		file, err := os.Create(getFilePath(fileName, "csv"))
 		if err != nil {
 			println(err.Error())
@@ -290,7 +292,7 @@ func DownloadParametersByValue(targetvalue string, filterpath string) {
 }
 
 // ExportParameters download all parameters linked to a project.
-func ExportParameters(env string, domain string, project string) {
+func ExportParameters(env string, domain string, project string, recursive bool) {
 	params, err := GetParametersByPath("/" + env + "/" + domain + "/" + project)
 	if err != nil {
 		println(err.Error())
@@ -495,7 +497,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		ExportParameters(env, domain, project)
+		ExportParameters(env, domain, project, recursive)
 
 	case "validate":
 		validate.Parse(os.Args[2:])
@@ -541,6 +543,7 @@ func init() {
 	export.StringVar(&env, "env", "", "(required) The source environment")
 	export.StringVar(&domain, "domain", "", "(required) The project domain")
 	export.StringVar(&project, "project", "", "(required) The project name")
+	export.BoolVar(&recursive, "recursive", false, "(optional) Select if pargolo should recursively resolve parameters value")
 	validate = flag.NewFlagSet("Validate", flag.ExitOnError)
 	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	validate.StringVar(&input, "input", "", "(required) Input CSV file")
