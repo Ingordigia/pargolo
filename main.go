@@ -206,7 +206,7 @@ func DownloadParametersByPath(path string) {
 		}
 		fileName := fmt.Sprintf("searchbypath-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
-		file, err := os.Create(getCsvPath(fileName))
+		file, err := os.Create(getFilePath(fileName, "csv"))
 		if err != nil {
 			println(err.Error())
 		}
@@ -228,7 +228,7 @@ func DownloadParametersByPath(path string) {
 func UploadParametersFromCsv(filename string, overwrite bool) {
 
 	// Open the file
-	csvfile, err := os.Open(getCsvPath(filename))
+	csvfile, err := os.Open(getFilePath(filename, "csv"))
 	if err != nil {
 		println(err.Error())
 	}
@@ -267,7 +267,7 @@ func DownloadParametersByValue(targetvalue string, filterpath string) {
 				records = append(records, []string{key, value.Type, value.Value})
 			}
 		}
-		file, err := os.Create(getCsvPath(fileName))
+		file, err := os.Create(getFilePath(fileName, "csv"))
 		if err != nil {
 			println(err.Error())
 		}
@@ -311,7 +311,7 @@ func ExportParameters(env string, domain string, project string) {
 
 	fileName := fmt.Sprintf("export-%s-%s-%s", project, env, time.Now().UTC().Format("20060102150405"))
 
-	file, err := os.Create(getCsvPath(fileName))
+	file, err := os.Create(getFilePath(fileName, "csv"))
 	if err != nil {
 		println(err.Error())
 	}
@@ -329,7 +329,7 @@ func ExportParameters(env string, domain string, project string) {
 // ValidateParameters read parameters from a CSV and check for inconsistencies.
 func ValidateParameters(filename string, env string) {
 	// Open the file
-	csvfile, err := os.Open(getCsvPath(filename))
+	csvfile, err := os.Open(getFilePath(filename, "csv"))
 	if err != nil {
 		println(err.Error())
 	}
@@ -389,9 +389,8 @@ func ValidateParameters(filename string, env string) {
 // InitializeParameters read a Json config file and extract blank parameters and create a CSV file for pargolo upload.
 func InitializeParameters(filename string, env string, domain string, project string) {
 
-	inputPath := filename
 	// read data from file
-	jsondatafromfile, err := ioutil.ReadFile(inputPath)
+	jsondatafromfile, err := ioutil.ReadFile(getFilePath(filename, "json"))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -423,11 +422,11 @@ func InitializeParameters(filename string, env string, domain string, project st
 	writer.Flush()
 }
 
-func getCsvPath(filename string) string {
-	if strings.HasSuffix(filename, ".csv") {
+func getFilePath(filename string, extension string) string {
+	if strings.HasSuffix(filename, extension) {
 		return filename
 	}
-	return fmt.Sprintf("./%s.csv", filename)
+	return fmt.Sprintf("./%s.%s", filename, extension)
 }
 
 func main() {
