@@ -196,13 +196,26 @@ func GetParametersByPath(path string) (params SystemsManagerParameters, err erro
 }
 
 // DownloadParametersByPath retrieves the parameter from the AWS System Manager Parameter Store.
-func DownloadParametersByPath(path string) {
+func DownloadParametersByPath(path string, recursive bool) {
 	params, err := GetParametersByPath(path)
 	if err != nil {
 		println(err.Error())
 	}
 
 	records := [][]string{}
+
+	for key, value := range params {
+		if strings.Contains(value.Value, "/common/") && recursive {
+			common, err := GetParameterByName(value.Value)
+			if err != nil {
+				println(err.Error())
+			} else {
+				param := params[key]
+				param.Value = common.Value
+				params[key] = param
+			}
+		}
+	}
 
 	if output != "" {
 		for key, value := range params {
@@ -292,7 +305,7 @@ func DownloadParametersByValue(targetvalue string, filterpath string) {
 }
 
 // ExportParameters download all parameters linked to a project.
-func ExportParameters(env string, domain string, project string, recursive bool) {
+func ExportParameters(env string, domain string, project string) {
 	params, err := GetParametersByPath("/" + env + "/" + domain + "/" + project)
 	if err != nil {
 		println(err.Error())
@@ -470,7 +483,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		DownloadParametersByPath(path)
+		DownloadParametersByPath(path, recursive)
 
 	case "upload":
 		upload.Parse(os.Args[2:])
@@ -497,7 +510,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		ExportParameters(env, domain, project, recursive)
+		ExportParameters(env, domain, project)
 
 	case "validate":
 		validate.Parse(os.Args[2:])
@@ -529,6 +542,7 @@ func init() {
 	searchbypath.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	searchbypath.StringVar(&path, "path", "", "(required) prefix path to download")
 	searchbypath.StringVar(&output, "output", "", "(optional) Output CSV file")
+	searchbypath.BoolVar(&recursive, "recursive", false, "(optional) Select if pargolo should recursively resolve parameters value")
 	searchbyvalue = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	searchbyvalue.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	searchbyvalue.StringVar(&value, "value", "", "(required) The Value to search")
@@ -543,7 +557,6 @@ func init() {
 	export.StringVar(&env, "env", "", "(required) The source environment")
 	export.StringVar(&domain, "domain", "", "(required) The project domain")
 	export.StringVar(&project, "project", "", "(required) The project name")
-	export.BoolVar(&recursive, "recursive", false, "(optional) Select if pargolo should recursively resolve parameters value")
 	validate = flag.NewFlagSet("Validate", flag.ExitOnError)
 	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	validate.StringVar(&input, "input", "", "(required) Input CSV file")
