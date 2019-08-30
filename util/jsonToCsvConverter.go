@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 var keysToIgnore = map[string]bool{
@@ -42,12 +43,12 @@ func (c *jsonToCsvConverter) getRows(jsonMap map[string]interface{}) []string {
 		kind := reflect.TypeOf(value).Kind()
 		if kind != reflect.Map {
 			if fmt.Sprintf("%v", value) == "" && !keysToIgnore[finalKey] {
-				ret = append(ret, finalKey)
+				ret = append(ret, strings.ToLower(finalKey))
 			}
 		} else {
 			for _, partialKey := range c.getRows(value.(map[string]interface{})) {
 				finalKey = fmt.Sprintf("%s/%s", key, partialKey)
-				ret = append(ret, finalKey)
+				ret = append(ret, strings.ToLower(finalKey))
 			}
 		}
 	}

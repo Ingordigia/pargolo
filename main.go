@@ -398,7 +398,7 @@ func ValidateParameters(filename string, env string) {
 				if projectvar.Value == param.Value {
 					println("PRESENT -> MAINTAIN    - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
-					println("PRESENT -> OVERWRITE   - " + projectvar.Value + " WITH VALUE " + param.Value)
+					println("PRESENT -> OVERWRITE   - " + projectvar.Name + " WITH VALUE " + param.Value)
 				}
 			}
 		}

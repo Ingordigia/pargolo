@@ -31,7 +31,7 @@ func TestOneVariableTwoLevel(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	expected := `Sentry/SentryDSN`
+	expected := `sentry/sentrydsn`
 
 	assert.Equal(t, expected, actualCsv[0])
 }
@@ -57,7 +57,7 @@ func TestOneVariableThreeLevel(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	expected := `Sentry/SentryDSN1/SentryDSN2`
+	expected := `sentry/sentrydsn1/sentrydsn2`
 
 	assert.Equal(t, expected, actualCsv[0])
 }
@@ -73,12 +73,12 @@ func TestMultilineOneVariableOneLevel(t *testing.T) {
 	}
 	actual := strings.Join(actualCsv, "|")
 
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/SecretKey`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/ClientSecret`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/CacheRedis/Endpoint`))
-	assert.Equal(t, false, strings.Contains(actual, `Environment`))
-	assert.Equal(t, true, strings.Contains(actual, `WebApp/Port`))
-	assert.Equal(t, true, strings.Contains(actual, `Log/RollingFile/File`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/secretkey`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/clientsecret`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/cacheredis/endpoint`))
+	assert.Equal(t, false, strings.Contains(actual, `environment`))
+	assert.Equal(t, true, strings.Contains(actual, `webapp/port`))
+	assert.Equal(t, true, strings.Contains(actual, `log/rollingfile/file`))
 }
 
 func TestMultilineOneVariableSameLevel(t *testing.T) {
@@ -92,9 +92,9 @@ func TestMultilineOneVariableSameLevel(t *testing.T) {
 		t.Fail()
 	}
 	actual := strings.Join(actualCsv, "|")
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/SecretKey`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/ClientSecret`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/CacheRedis/Endpoint`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/secretkey`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/clientsecret`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/cacheredis/endpoint`))
 }
 
 func TestRealCase(t *testing.T) {
@@ -108,24 +108,24 @@ func TestRealCase(t *testing.T) {
 	}
 	actual := strings.Join(actualCsv, "|")
 
-	assert.Equal(t, false, strings.Contains(actual, `Environment`))
-	assert.Equal(t, true, strings.Contains(actual, `AppClientId`))
-	assert.Equal(t, true, strings.Contains(actual, `WebApp/Port`))
-	assert.Equal(t, true, strings.Contains(actual, `Sentry/SentryDSN`))
-	assert.Equal(t, true, strings.Contains(actual, `Log/RollingFile/File`))
-	assert.Equal(t, true, strings.Contains(actual, `ConsoleCredentials/Username`))
-	assert.Equal(t, true, strings.Contains(actual, `ConsoleCredentials/Password`))
-	assert.Equal(t, true, strings.Contains(actual, `Redis/Endpoint`))
-	assert.Equal(t, true, strings.Contains(actual, `Redis/Port`))
-	assert.Equal(t, true, strings.Contains(actual, `Redis/Database`))
-	assert.Equal(t, true, strings.Contains(actual, `AccountsRedis/Endpoint`))
-	assert.Equal(t, true, strings.Contains(actual, `AccountsRedis/Port`))
-	assert.Equal(t, true, strings.Contains(actual, `AccountsRedis/Database`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/SecretKey`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/ClientSecret`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/CacheRedis/Endpoint`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/CacheRedis/Port`))
-	assert.Equal(t, true, strings.Contains(actual, `OAuth2/CacheRedis/Database`))
-	assert.Equal(t, true, strings.Contains(actual, `ServiceEndpoints/Endpoint1/Endpoint`))
-	assert.Equal(t, true, strings.Contains(actual, `ServiceEndpoints/Endpoint2/Endpoint`))
+	assert.Equal(t, false, strings.Contains(actual, `environment`))
+	assert.Equal(t, true, strings.Contains(actual, `appclientid`))
+	assert.Equal(t, true, strings.Contains(actual, `webapp/port`))
+	assert.Equal(t, true, strings.Contains(actual, `sentry/sentrydsn`))
+	assert.Equal(t, true, strings.Contains(actual, `log/rollingfile/file`))
+	assert.Equal(t, true, strings.Contains(actual, `consolecredentials/username`))
+	assert.Equal(t, true, strings.Contains(actual, `consolecredentials/password`))
+	assert.Equal(t, true, strings.Contains(actual, `redis/endpoint`))
+	assert.Equal(t, true, strings.Contains(actual, `redis/port`))
+	assert.Equal(t, true, strings.Contains(actual, `redis/database`))
+	assert.Equal(t, true, strings.Contains(actual, `accountsredis/endpoint`))
+	assert.Equal(t, true, strings.Contains(actual, `accountsredis/port`))
+	assert.Equal(t, true, strings.Contains(actual, `accountsredis/database`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/secretkey`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/clientsecret`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/cacheredis/endpoint`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/cacheredis/port`))
+	assert.Equal(t, true, strings.Contains(actual, `oauth2/cacheredis/database`))
+	assert.Equal(t, true, strings.Contains(actual, `serviceendpoints/endpoint1/endpoint`))
+	assert.Equal(t, true, strings.Contains(actual, `serviceendpoints/endpoint2/endpoint`))
 }
