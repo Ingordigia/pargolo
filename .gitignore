@@ -5,6 +5,7 @@
 *.so
 *.dylib
 pargolo
+.idea
 
 # Test binary, build with `go test -c`
 *.test
@@ -14,3 +15,9 @@ pargolo
 
 # CSV created by Pargolo
 *.csv
+
+# JSON files used by "initialize" features
+config.json
+
+# Zipped files
+*.zip

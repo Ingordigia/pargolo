@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/ingordigia/pargolo/util"
 )
 
 // Parameters is  a map of parameter names and values
@@ -28,13 +30,14 @@ type SystemsManagerParameter struct {
 // SystemsManagerParameters is  a map of parameter names and SystemsManagerParameter objects
 type SystemsManagerParameters map[string]*SystemsManagerParameter
 
-var profile, prefix, output, input, value, env, domain, filter, project string
+var profile, path, output, input, value, env, domain, filter, project string
 var overwrite bool
 var searchbypath *flag.FlagSet
 var upload *flag.FlagSet
 var searchbyvalue *flag.FlagSet
 var export *flag.FlagSet
 var validate *flag.FlagSet
+var initialize *flag.FlagSet
 var allparams = make(map[string]*SystemsManagerParameter)
 
 // CreateSession returns a new AWS session
@@ -223,7 +226,6 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 	if err != nil {
 		println(err.Error())
 	}
-	fmt.Println(records)
 
 	if len(records) > 0 {
 		for _, row := range records {
@@ -233,7 +235,6 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 			}
 		}
 	}
-	println("ok")
 }
 
 // DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
@@ -311,8 +312,6 @@ func ExportParameters(env string, domain string, project string) {
 	if err := w.Error(); err != nil {
 		log.Fatalln("error writing csv:", err)
 	}
-
-	println("ok")
 }
 
 // ValidateParameters read parameters from a CSV and check for inconsistencies.
@@ -322,7 +321,7 @@ func ValidateParameters(filename string, env string) {
 	if err != nil {
 		println(err.Error())
 	}
-	//params := make(map[string]*SystemsManagerParameter)
+
 	params := make(SystemsManagerParameters)
 
 	// Parse the file
@@ -332,7 +331,6 @@ func ValidateParameters(filename string, env string) {
 	if err != nil {
 		println(err.Error())
 	}
-	//fmt.Println(records)
 
 	// Create SystemsManagerParameters from CSV data
 	for _, row := range records {
@@ -343,10 +341,8 @@ func ValidateParameters(filename string, env string) {
 		if strings.HasPrefix(param.Name, "/"+env+"/common") {
 			commonvar, err := GetParameterByName(param.Name)
 			if err != nil {
-				//println(param.Name + " non esiste sul parameter store... cerco altri parametri in ambiente " + env + " con lo stesso valore:")
 				commonvalues, err := GetParametersByValue(param.Value)
 				if err != nil {
-					//println("non ho trovato altre variabili comuni con il valore " + param.Value + " , la nuova variabile comune " + param.Name + " può essere inserita.")
 					println("MISSING -> CREATE      - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
 					println("MISSING -> DUPLICATE   - " + param.Name + " WITH VALUE " + param.Value)
@@ -355,7 +351,6 @@ func ValidateParameters(filename string, env string) {
 							println("- " + commonvalue.Name + " with value " + commonvalue.Value)
 						}
 					}
-					//println("considera la possibilità di modificare il puntamento della variabile di progetto verso una di queste common")
 				}
 			} else {
 				if commonvar.Value == param.Value {
@@ -377,7 +372,43 @@ func ValidateParameters(filename string, env string) {
 			}
 		}
 	}
-	println("ok")
+}
+
+// InitializeParameters read a Json config file and extract blank parameters and create a CSV file for pargolo upload.
+func InitializeParameters(filename string, env string, domain string, project string) {
+
+	inputPath := filename
+	// read data from file
+	jsondatafromfile, err := ioutil.ReadFile(inputPath)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Create csv structure from json data
+	actualCsv, err := util.NewJSONToCsvConverter().Convert(jsondatafromfile)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//create output csvfile
+	csvdatafile, err := os.Create("./data.csv")
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer csvdatafile.Close()
+
+	writer := csv.NewWriter(csvdatafile)
+
+	for _, key := range actualCsv {
+		var record []string
+		record = append(record, "/"+env+"/"+domain+"/"+project+"/"+key)
+		record = append(record, "String")
+		record = append(record, "")
+		writer.Write(record)
+	}
+
+	// remember to flush!
+	writer.Flush()
 }
 
 func getCsvPath(filename string) string {
@@ -391,20 +422,23 @@ func main() {
 
 		flag.PrintDefaults()
 
-		fmt.Printf("[searchbypath]\n")
+		fmt.Printf("\n--- searchbypath ---\n")
 		searchbypath.PrintDefaults()
 
-		fmt.Printf("[searchbyvalue]\n")
+		fmt.Printf("\n--- searchbyvalue ---\n")
 		searchbyvalue.PrintDefaults()
 
-		fmt.Printf("[upload]\n")
+		fmt.Printf("\n--- upload ---\n")
 		upload.PrintDefaults()
 
-		fmt.Printf("[export]\n")
+		fmt.Printf("\n--- export ---\n")
 		export.PrintDefaults()
 
-		fmt.Printf("[validate]\n")
+		fmt.Printf("\n--- validate ---\n")
 		validate.PrintDefaults()
+
+		fmt.Printf("\n--- initialize ---\n")
+		initialize.PrintDefaults()
 
 		os.Exit(0)
 	}
@@ -413,12 +447,12 @@ func main() {
 
 	case "searchbypath":
 		searchbypath.Parse(os.Args[2:])
-		if prefix == "" {
+		if path == "" {
 			searchbypath.PrintDefaults()
 			os.Exit(1)
 		}
 
-		DownloadParametersByPath(prefix)
+		DownloadParametersByPath(path)
 
 	case "upload":
 		upload.Parse(os.Args[2:])
@@ -456,6 +490,15 @@ func main() {
 
 		ValidateParameters(input, env)
 
+	case "initialize":
+		initialize.Parse(os.Args[2:])
+		if input == "" || env == "" || domain == "" || project == "" {
+			initialize.PrintDefaults()
+			os.Exit(1)
+		}
+
+		InitializeParameters(input, env, domain, project)
+
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -466,7 +509,7 @@ func main() {
 func init() {
 	searchbypath = flag.NewFlagSet("SearchByPath", flag.ExitOnError)
 	searchbypath.StringVar(&profile, "profile", "", "(optional) AWS profile")
-	searchbypath.StringVar(&prefix, "prefix", "", "(required) prefix path to download")
+	searchbypath.StringVar(&path, "path", "", "(required) prefix path to download")
 	searchbypath.StringVar(&output, "output", "", "(optional) Output CSV file")
 	searchbyvalue = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	searchbyvalue.StringVar(&profile, "profile", "", "(optional) AWS profile")
@@ -486,4 +529,10 @@ func init() {
 	validate.StringVar(&profile, "profile", "", "(optional) AWS profile")
 	validate.StringVar(&input, "input", "", "(required) Input CSV file")
 	validate.StringVar(&env, "env", "", "(required) The target environment")
+	initialize = flag.NewFlagSet("Initialize", flag.ExitOnError)
+	initialize.StringVar(&profile, "profile", "", "(optional) AWS profile")
+	initialize.StringVar(&input, "input", "", "(required) Input CSV file")
+	initialize.StringVar(&env, "env", "", "(required) The source environment")
+	initialize.StringVar(&domain, "domain", "", "(required) The project domain")
+	initialize.StringVar(&project, "project", "", "(required) The project name")
 }
