@@ -318,7 +318,7 @@ func ExportParameters(env string, domain string, project string) {
 	}
 
 	for _, value := range params {
-		if strings.HasPrefix(value.Value, "/"+env+"/common") {
+		if strings.Contains(value.Value, "/common/") {
 			common, err := GetParameterByName(value.Value)
 			if err != nil {
 				println(err.Error())
@@ -368,8 +368,23 @@ func ValidateParameters(filename string, env string) {
 		params[row[0]] = &SystemsManagerParameter{Name: row[0], Type: row[1], Value: row[2]}
 	}
 
+	// for _, param := range params {
+	// 	if !strings.HasPrefix(param.Name, "/"+env) {
+	// 		reader := bufio.NewReader(os.Stdin)
+	// 		fmt.Print("An entry with a different environment was found, are you sure do you want to continue? (Y)es/(N)o :")
+	// 		userinput, _ := reader.ReadString('\n')
+	// 		strings.ToLower(userinput)
+	// 		if text == "y" || text == "yes"{
+	// 			fmt.Println(text)
+	// 		} else if text == "n" || text == "no" {
+	// 			fmt.Println(text)
+	// 		}
+	//
+	// 	}
+	// }
+
 	for _, param := range params {
-		if strings.HasPrefix(param.Name, "/"+env+"/common") {
+		if strings.Contains(param.Name, "/common/") {
 			commonvar, err := GetParameterByName(param.Name)
 			if err != nil {
 				commonvalues, err := GetParametersByValue(param.Value)
