@@ -8,8 +8,12 @@ import (
 	"os"
 )
 
-var path, output, input, value, env, domain, filter, project string
-var overwrite bool
+// Parameters is  a map of parameter names and values
+type Parameters map[string]string
+
+var profile, path, output, input, value, env, domain, filter, project string
+var overwrite, recursive bool
+
 var searchbypath *flag.FlagSet
 var upload *flag.FlagSet
 var searchbyvalue *flag.FlagSet
@@ -21,8 +25,6 @@ func main() {
 	flag.Parse()
 
 	if len(os.Args) < 2 {
-
-		flag.PrintDefaults()
 
 		fmt.Printf("\n--- searchbypath ---\n")
 		searchbypath.PrintDefaults()
@@ -62,7 +64,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pargolo.DownloadParametersByPath(path)
+		pargolo.DownloadParametersByPath(path, recursive)
 
 	case "upload":
 		upload.Parse(os.Args[2:])
@@ -121,6 +123,7 @@ func init() {
 	searchbypath.StringVar(&domains.Profile, "profile", "", "(optional) AWS profile")
 	searchbypath.StringVar(&path, "path", "", "(required) prefix path to download")
 	searchbypath.StringVar(&output, "output", "", "(optional) Output CSV file")
+	searchbypath.BoolVar(&recursive, "recursive", false, "(optional) Select if pargolo should recursively resolve parameters value")
 	searchbyvalue = flag.NewFlagSet("SearchByValue", flag.ExitOnError)
 	searchbyvalue.StringVar(&domains.Profile, "profile", "", "(optional) AWS profile")
 	searchbyvalue.StringVar(&value, "value", "", "(required) The Value to search")
@@ -141,7 +144,7 @@ func init() {
 	validate.StringVar(&env, "env", "", "(required) The target environment")
 	initialize = flag.NewFlagSet("Initialize", flag.ExitOnError)
 	initialize.StringVar(&domains.Profile, "profile", "", "(optional) AWS profile")
-	initialize.StringVar(&input, "input", "", "(required) Input CSV file")
+	initialize.StringVar(&input, "input", "", "(required) Input JSON config file")
 	initialize.StringVar(&env, "env", "", "(required) The source environment")
 	initialize.StringVar(&domain, "domain", "", "(required) The project domain")
 	initialize.StringVar(&project, "project", "", "(required) The project name")

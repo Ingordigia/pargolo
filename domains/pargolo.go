@@ -21,6 +21,28 @@ type Parameters map[string]string
 
 var Profile, output string
 
+type IPargolo interface {
+	// UploadParametersFromCsv read parameters from CSV and write them to the AWS System Manager Parameter Store.
+	UploadParametersFromCsv(filename string, overwrite bool)
+	// DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
+	DownloadParametersByValue(targetvalue string, filterpath string)
+	// ExportParameters download all parameters linked to a project.
+	ExportParameters(env string, domain string, project string)
+	// ValidateParameters read parameters from a CSV and check for inconsistencies.
+	ValidateParameters(filename string, env string)
+	// InitializeParameters read a Json config file and extract blank parameters and create a CSV file for pargolo upload.
+	InitializeParameters(filename string, env string, domain string, project string)
+	// DownloadParametersByPath retrieves the parameter from the AWS System Manager Parameter Store.
+	DownloadParametersByPath(path string, recursive bool)
+	// GetParametersByValue scrape the entire parameter store searching for all keys with a specific value
+	GetParametersByValue(paramValue string) (params models.SystemsManagerParameters, err error)
+
+	GetParameterByName(paramName string) (param models.SystemsManagerParameter, err error)
+	SetParameter(paramName string, paramType string, paramValue string, overwrite bool) (err error)
+	DeleteParameter(paramName string) (err error)
+	GetParametersByPath(path string) (params models.SystemsManagerParameters, err error)
+}
+
 type Pargolo struct {
 	repo repositories.IPargoloRepository
 }
@@ -86,15 +108,13 @@ func (pargolo *Pargolo) DownloadParametersByValue(targetvalue string, filterpath
 
 	for key, value := range params {
 		if strings.HasPrefix(value.Name, filterpath) {
-			if output != "" {
-				records = append(records, []string{key, value.Type, value.Value})
-			} else {
-				println(value.Type + " " + value.Name + " " + value.Value)
-			}
+			records = append(records, []string{key, value.Type, value.Value})
+		} else {
+			delete(params, value.Name)
 		}
 	}
 	if output != "" {
-		file, err := os.Create(pargolo.getCsvPath(fileName))
+		file, err := os.Create(getFilePath(fileName, "csv"))
 		if err != nil {
 			println(err.Error())
 		}
@@ -107,9 +127,10 @@ func (pargolo *Pargolo) DownloadParametersByValue(targetvalue string, filterpath
 		if err := w.Error(); err != nil {
 			log.Fatalln("error writing csv:", err)
 		}
+	} else {
+		PrintMapToShell(params)
 	}
 }
-
 // ExportParameters download all parameters linked to a project.
 func (pargolo *Pargolo) ExportParameters(env string, domain string, project string) {
 	params, err := pargolo.repo.GetParametersByPath("/" + env + "/" + domain + "/" + project)
@@ -124,7 +145,7 @@ func (pargolo *Pargolo) ExportParameters(env string, domain string, project stri
 	}
 
 	for _, value := range params {
-		if strings.HasPrefix(value.Value, "/"+env+"/common") {
+		if strings.Contains(value.Value, "/common/") {
 			common, err := pargolo.repo.GetParameterByName(value.Value)
 			if err != nil {
 				println(err.Error())
@@ -175,7 +196,7 @@ func (pargolo *Pargolo) ValidateParameters(filename string, env string) {
 	}
 
 	for _, param := range params {
-		if strings.HasPrefix(param.Name, "/"+env+"/common") {
+		if strings.Contains(param.Name, "/common/") {
 			commonvar, err := pargolo.repo.GetParameterByName(param.Name)
 			if err != nil {
 				commonvalues, err := pargolo.GetParametersByValue(param.Value)
@@ -204,7 +225,7 @@ func (pargolo *Pargolo) ValidateParameters(filename string, env string) {
 				if projectvar.Value == param.Value {
 					println("PRESENT -> MAINTAIN    - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
-					println("PRESENT -> OVERWRITE   - " + projectvar.Value + " WITH VALUE " + param.Value)
+					println("PRESENT -> OVERWRITE   - " + projectvar.Name + " WITH VALUE " + param.Value)
 				}
 			}
 		}
@@ -252,8 +273,35 @@ func (pargolo *Pargolo) getCsvPath(filename string) string {
 	return fmt.Sprintf("./%s.csv", filename)
 }
 
+func getFilePath(filename string, extension string) string {
+	if strings.HasSuffix(filename, extension) {
+		return filename
+	}
+	return fmt.Sprintf("./%s.%s", filename, extension)
+}
+
+// PrintMapToShell prints the parameters map to the shell standard Output
+func PrintMapToShell(params models.SystemsManagerParameters) {
+	maxKeyLength := 0
+	maxTypeLenght := 0
+
+	if output == "" {
+		for _, value := range params {
+			if maxKeyLength < len(value.Name) {
+				maxKeyLength = len(value.Name)
+			}
+			if maxTypeLenght < len(value.Type) {
+				maxTypeLenght = len(value.Type)
+			}
+		}
+	}
+	for _, value := range params {
+		println(value.Type + strings.Repeat(" ", maxTypeLenght+1-len(value.Type)) + value.Name + strings.Repeat(" ", maxKeyLength+1-len(value.Name)) + value.Value)
+	}
+}
+
 // DownloadParametersByPath retrieves the parameter from the AWS System Manager Parameter Store.
-func (pargolo *Pargolo) DownloadParametersByPath(path string) {
+func (pargolo *Pargolo) DownloadParametersByPath(path string, recursive bool) {
 	params, err := pargolo.repo.GetParametersByPath(path)
 	if err != nil {
 		println(err.Error())
@@ -262,16 +310,25 @@ func (pargolo *Pargolo) DownloadParametersByPath(path string) {
 	records := [][]string{}
 
 	for key, value := range params {
-		if output != "" {
-			records = append(records, []string{key, value.Type, value.Value})
-		} else {
-			println(value.Type + " " + value.Name + " " + value.Value)
+		if strings.Contains(value.Value, "/common/") && recursive {
+			common, err := pargolo.repo.GetParameterByName(value.Value)
+			if err != nil {
+				println(err.Error())
+			} else {
+				param := params[key]
+				param.Value = common.Value
+				params[key] = param
+			}
 		}
 	}
+
 	if output != "" {
+		for key, value := range params {
+			records = append(records, []string{key, value.Type, value.Value})
+		}
 		fileName := fmt.Sprintf("searchbypath-%s-%s", output, time.Now().UTC().Format("20060102150405"))
 
-		file, err := os.Create(pargolo.getCsvPath(fileName))
+		file, err := os.Create(getFilePath(fileName, "csv"))
 		if err != nil {
 			println(err.Error())
 		}
@@ -284,6 +341,8 @@ func (pargolo *Pargolo) DownloadParametersByPath(path string) {
 		if err := w.Error(); err != nil {
 			log.Fatalln("error writing csv:", err)
 		}
+	} else {
+		PrintMapToShell(params)
 	}
 }
 
@@ -307,4 +366,5 @@ func (pargolo *Pargolo) GetParametersByValue(paramValue string) (params models.S
 		return params, errors.New("can't find any parameter with value " + paramValue)
 	}
 	return params, nil
+
 }

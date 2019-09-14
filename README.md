@@ -37,6 +37,8 @@ $ ./pargolo.exe
         (required) prefix path to download
   -profile string
         (optional) AWS profile
+  -recursive
+        (optional) Select if pargolo should recursively resolve parameters value
 
 --- searchbyvalue ---
   -filter string
@@ -80,7 +82,7 @@ $ ./pargolo.exe
   -env string
         (required) The source environment
   -input string
-        (required) Input CSV file
+        (required) Input JSON config file
   -profile string
         (optional) AWS profile
   -project string
@@ -96,6 +98,10 @@ $ ./pargolo.exe searchbypath -path /my/prefix/path
 or write them in a CSV file with the `-output` flag
 ```sh
 $ ./pargolo.exe searchbypath -output localcsvname -path /my/prefix/path
+```
+you can even recursively resolve values with the `-recursive` option
+```sh
+$ ./pargolo.exe searchbypath -path /my/prefix/path -recursive
 ```
 
 #### Upload parameters from a local CSV with "pargolo upload"
