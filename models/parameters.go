@@ -7,7 +7,5 @@ type SystemsManagerParameter struct {
 	Value string
 }
 
-
 // SystemsManagerParameters is  a map of parameter names and SystemsManagerParameter objects
 type SystemsManagerParameters map[string]*SystemsManagerParameter
-
