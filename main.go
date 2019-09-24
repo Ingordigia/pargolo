@@ -47,24 +47,14 @@ func main() {
 		os.Exit(0)
 	}
 
-	repo, err := repositories.NewRepository(nil, nil, nil)
-	if err != nil {
-		os.Exit(-1)
-	}
-	pargolo, err := domains.NewPargolo(repo)
-	if err != nil {
-		os.Exit(-1)
-	}
 	switch os.Args[1] {
-
 	case "searchbypath":
 		searchbypath.Parse(os.Args[2:])
 		if path == "" {
 			searchbypath.PrintDefaults()
 			os.Exit(1)
 		}
-
-		pargolo.DownloadParametersByPath(path, recursive)
+		buildPargolo().DownloadParametersByPath(path, recursive)
 
 	case "upload":
 		upload.Parse(os.Args[2:])
@@ -73,7 +63,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pargolo.UploadParametersFromCsv(input, overwrite)
+		buildPargolo().UploadParametersFromCsv(input, overwrite)
 
 	case "searchbyvalue":
 		searchbyvalue.Parse(os.Args[2:])
@@ -82,7 +72,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pargolo.DownloadParametersByValue(value, filter)
+		buildPargolo().DownloadParametersByValue(value, filter)
 
 	case "export":
 		export.Parse(os.Args[2:])
@@ -91,7 +81,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pargolo.ExportParameters(env, domain, project)
+		buildPargolo().ExportParameters(env, domain, project)
 
 	case "validate":
 		validate.Parse(os.Args[2:])
@@ -100,7 +90,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		pargolo.ValidateParameters(input, env)
+		buildPargolo().ValidateParameters(input, env)
 
 	case "initialize":
 		initialize.Parse(os.Args[2:])
@@ -109,13 +99,25 @@ func main() {
 			os.Exit(1)
 		}
 
-		pargolo.InitializeParameters(input, env, domain, project)
+		buildPargolo().InitializeParameters(input, env, domain, project)
 
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
 
 	}
+}
+
+func buildPargolo() domains.IPargolo {
+	repo, err := repositories.NewRepository(nil, &profile, nil)
+	if err != nil {
+		os.Exit(-1)
+	}
+	pargolo, err := domains.NewPargolo(repo)
+	if err != nil {
+		os.Exit(-1)
+	}
+	return pargolo
 }
 
 func init() {

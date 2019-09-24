@@ -115,9 +115,9 @@ func (spts *PargoloTestSuite) Test_WhenParameterIsValid_ShouldSetTheSpecifiedPar
 }
 
 func SetupAwsClient() (*ssm_aws.SSM, error) {
-	awsRegion := aws.String("eu-west-1") // example "eu-west-1"   EU (Ireland)
+
 	sess, err := session.NewSession(&aws.Config{
-		Region: awsRegion,
+		Region:      aws.String("eu-west-1"), // example "eu-west-1"   EU (Ireland)
 	})
 	if err != nil {
 		return nil, err
