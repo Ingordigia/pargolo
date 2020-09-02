@@ -142,12 +142,20 @@ func GetParameterByName(paramName string) (param SystemsManagerParameter, err er
 }
 
 // GetParametersByValue scrape the entire parameter store searching for all keys with a specific value
-func GetParametersByValue(paramValue string) (params SystemsManagerParameters, err error) {
+func GetParametersByValue(paramValue string, filterPath string) (params SystemsManagerParameters, err error) {
 	if len(allparams) == 0 {
-		allparams, err = GetParametersByPath("/")
-		if err != nil {
-			println(err.Error())
+		if filterPath != "" {
+			allparams, err = GetParametersByPath(filterPath)
+			if err != nil {
+				println(err.Error())
+			}
+		} else {
+			allparams, err = GetParametersByPath("/")
+			if err != nil {
+				println(err.Error())
+			}
 		}
+
 	}
 
 	params = make(map[string]*SystemsManagerParameter)
@@ -270,7 +278,7 @@ func UploadParametersFromCsv(filename string, overwrite bool) {
 
 // DownloadParametersByValue read parameters from Parameter store and return all keys with a specific value.
 func DownloadParametersByValue(targetvalue string, filterpath string) {
-	params, err := GetParametersByValue(targetvalue)
+	params, err := GetParametersByValue(targetvalue, filterpath)
 	if err != nil {
 		println(err.Error())
 	}
@@ -387,7 +395,7 @@ func ValidateParameters(filename string, env string) {
 		if strings.Contains(param.Name, "/common/") {
 			commonvar, err := GetParameterByName(param.Name)
 			if err != nil {
-				commonvalues, err := GetParametersByValue(param.Value)
+				commonvalues, err := GetParametersByValue(param.Value, "/"+env)
 				if err != nil {
 					println("MISSING -> CREATE      - " + param.Name + " WITH VALUE " + param.Value)
 				} else {
